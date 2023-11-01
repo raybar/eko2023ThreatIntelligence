@@ -1,0 +1,112 @@
+version: "3.8"
+services:
+  elasticsearch:
+    image: 'docker.elastic.co/elasticsearch/elasticsearch:7.17.7'
+    ports:
+      - '0.0.0.0:9200:9200'
+    environment:
+
+      - http.host=0.0.0.0
+      - discovery.type=single-node
+      - cluster.name=hive
+      - script.allowed_types= inline
+      - thread_pool.search.queue_size=100000
+      - thread_pool.write.queue_size=10000
+      - gateway.recover_after_nodes=1
+      - xpack.security.enabled=false
+      - bootstrap.memory_lock=true
+      - 'ES_JAVA_OPTS=-Xms2g -Xmx2g'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - eshmc1data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: 'docker.elastic.co/kibana/kibana:7.17.7'
+    depends_on:
+      - elasticsearch
+    ports:
+      - '5602:5601'
+
+  cortex:
+    image: 'thehiveproject/cortex:latest'
+    volumes:
+      - /mnt/docker/cortex/application.conf:/etc/cortex/application.conf
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp:/tmp
+    #environment:
+      #- http_proxy=${http_proxy}
+      #- https_proxy=${https_proxy}      
+    depends_on:
+      - elasticsearch
+    ports:
+      - '0.0.0.0:9001:9001'
+
+  cassandra:
+    image: cassandra:3.11.16
+    hostname: cassandra
+    environment:
+      - MAX_HEAP_SIZE=1G
+      - HEAP_NEWSIZE=1G
+      - CASSANDRA_CLUSTER_NAME=thp
+    volumes:
+      - cassandradata:/var/lib/cassandra/data
+
+  thehive:
+    image: 'thehiveproject/thehive4:latest'
+    depends_on:
+      - cassandra
+    ports:
+      - '0.0.0.0:9000:9000'
+    volumes:
+      - /mnt/docker/thehive/application.conf:/etc/thehive/application.conf
+      - /mnt/docker/thehive/data/:/opt/data
+      - /mnt/docker/thehive/index:/opt/index
+    #command: '--no-config --no-config-secret'
+
+  redis:
+    image: redis:latest
+
+  db:
+    image: mysql:latest
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      - "MYSQL_USER=misp"
+      - "MYSQL_PASSWORD=example"
+      - "MYSQL_ROOT_PASSWORD=password"
+      - "MYSQL_DATABASE=misp"
+    volumes:
+      - mysqldata:/var/lib/mysql
+
+  misp:
+    image: coolacid/misp-docker:core-v2.4.161a
+    depends_on:
+      - redis
+      - db
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - "BASEURL=https://10.30.24.181"
+      - "REDIS_FQDN=redis"
+      - "INIT=true"             # Initialze MISP, things includes, attempting to import SQL and the Files DIR
+      - "CRON_USER_ID=1"        # The MISP user ID to run cron jobs as
+      - "DISIPV6=true" # Disable IPV6 in nginx
+
+  misp-modules:
+    image: coolacid/misp-docker:modules-latest
+    environment:
+      - "REDIS_BACKEND=redis"
+    depends_on:
+      - redis
+      - db
+
+volumes:
+  cassandradata:
+           external: true
+  mysqldata:
+           external: true
+  eshmc1data:
+           external: true
