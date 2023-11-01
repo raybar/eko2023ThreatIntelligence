@@ -1,0 +1,88 @@
+version: "3.8"
+services:
+  eseek1:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - swarm-network
+    environment:
+      - cluster.name=docker-cluster
+      - discovery.seed_hosts=eseek2
+      - cluster.initial_master_nodes=eseek1,eseek2
+      - bootstrap.memory_lock=true
+      - node.name=eseek1
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+      - xpack.security.enabled=false
+      - SET_CONTAINER_TIMEZONE=true
+      - CONTAINER_TIMEZONE=America/Buenos_Aires
+    volumes:
+      - eseek1data:/usr/share/elasticsearch/data
+  
+  eseek2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - swarm-network
+    depends_on:
+      - eseek1
+    environment:
+      - cluster.name=docker-cluster
+      - discovery.seed_hosts=eseek1
+      - cluster.initial_master_nodes=eseek1,eseek2
+      - bootstrap.memory_lock=true
+      - node.name=eseek2
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+      - xpack.security.enabled=false
+      - SET_CONTAINER_TIMEZONE=true
+      - CONTAINER_TIMEZONE=America/Buenos_Aires
+    volumes:
+      - eseek2data:/usr/share/elasticsearch/data
+  
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.2
+    environment:
+      elasticsearch.ssl.verificationMode: none
+      xpack.reporting.kibanaServer.hostname: localhost
+      SET_CONTAINER_TIMEZONE: "true"
+      CONTAINER_TIMEZONE: America/Buenos_Aires
+      ELASTICSEARCH_HOSTS: '["http://eseek1:9200","http://eseek2:9200"]'
+    ports:
+      - 5601:5601
+    networks:
+      - swarm-network
+    depends_on:
+      - eseek1
+      - eseek2
+  
+  elastalert:
+    image: jertel/elastalert2:latest
+    depends_on:
+      - eseek1
+      - eseek2
+    networks:
+      - swarm-network
+    volumes:
+      - /mnt/docker/elastaler2/config/config.yaml:/opt/elastalert/config.yaml
+      - /mnt/docker/elastaler2/rules:/opt/elastalert/rules
+    cap_add:
+      - SYS_TIME
+      - SYS_NICE
+    environment:
+      - SET_CONTAINER_TIMEZONE=true
+      - CONTAINER_TIMEZONE=America/Buenos_Aires
+
+volumes:
+  eseek1data:
+      external: true
+  eseek2data:
+      external: true
+  
+networks:
+  swarm-network:
+    external: true
