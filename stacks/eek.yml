@@ -68,8 +68,8 @@ services:
     networks:
       - swarm-network
     volumes:
-      - /mnt/docker/elastaler2/config/config.yaml:/opt/elastalert/config.yaml
-      - /mnt/docker/elastaler2/rules:/opt/elastalert/rules
+      - /opt/docker/elastaler2/config/config.yaml:/opt/elastalert/config.yaml
+      - /opt/docker/elastaler2/rules:/opt/elastalert/rules
     cap_add:
       - SYS_TIME
       - SYS_NICE
