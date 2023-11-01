@@ -1,7 +1,7 @@
 version: '3.8'
  
 services:
-  logstashTpotExt:
+  logstash:
     image: docker.elastic.co/logstash/logstash:8.10.2
     ports:
       - 5000:5000
