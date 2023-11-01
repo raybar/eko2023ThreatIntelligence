@@ -1,0 +1,19 @@
+version: '3.8'
+ 
+services:
+  logstashTpotExt:
+    image: docker.elastic.co/logstash/logstash:8.10.2
+    ports:
+      - 5000:5000
+      - 9600:9600
+    networks: 
+      - swarm-network
+    environment:
+      LS_JAVA_OPTS: "-Xmx1g -Xms1g"
+    volumes:
+      - /opt/docker/logstash/config/:/usr/share/logstash/config/
+      - /opt/docker/logstash/pipeline/:/usr/share/logstash/pipeline/
+
+networks:
+  swarm-network:
+    external: true
